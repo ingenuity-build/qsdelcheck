@@ -8,6 +8,13 @@ start_http_server(9091)
 
 chain_id = os.environ.get("QSDELCHECK_CHAIN", "stargaze-1")
 debug = os.environ.get("QSDELCHECK_DEBUG", False) in [True, "true", "TRUE", "True", "1", 1]
+env = os.environ.get("QSDELCHECK_ENV", "prod").lower()
+
+## determine url prefix for env
+if env in ['prod', '']:
+  url_env = ''
+else:
+  url_env = env + '.'
 
 def dbg_print(*args):
   if debug:
@@ -26,21 +33,21 @@ internal = [
 "stars1954q9apawr6kg8ez4ukx8jyuaxakz7ye22ttyk", ## prakriti
 ]
 
-zone_req = requests.get("https://lcd.quicksilver.zone/quicksilver/interchainstaking/v1/zones")
+zone_req = requests.get("https://lcd.{}quicksilver.zone/quicksilver/interchainstaking/v1/zones".format(url_env))
 zones = zone_req.json().get('zones')
 zone = [x for x in zones if x.get('chain_id') == chain_id][0]
 #delegation_address = zone.get('delegation_address').get('address')
 
 while True:
   dbg_print("=================== {} ===================".format(datetime.now()))
-  supply_req = requests.get("https://lcd.quicksilver.zone/cosmos/bank/v1beta1/supply")
+  supply_req = requests.get("https://lcd.{}quicksilver.zone/cosmos/bank/v1beta1/supply".format(url_env))
   supply = supply_req.json().get("supply")
   this_token = [int(x.get("amount")) for x in supply if x.get("denom") == zone.get("local_denom")][0]
   g_supply_amount.set(this_token)
-  delegation_req = requests.get("https://lcd.quicksilver.zone/quicksilver/interchainstaking/v1/zones/{}/delegations".format(chain_id))
+  delegation_req = requests.get("https://lcd.{}quicksilver.zone/quicksilver/interchainstaking/v1/zones/{}/delegations".format(url_env, chain_id))
   delegated_tvl = int(delegation_req.json().get('tvl'))
 
-  receipt_req = requests.get("https://lcd.quicksilver.zone/quicksilver/interchainstaking/v1/zones/{}/receipts".format(chain_id))
+  receipt_req = requests.get("https://lcd.{}quicksilver.zone/quicksilver/interchainstaking/v1/zones/{}/receipts".format(url_env, chain_id))
   receipts = receipt_req.json().get('receipts')
 
   dbg_print("Total delegated:", delegated_tvl)

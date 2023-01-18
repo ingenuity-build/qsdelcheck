@@ -4,6 +4,7 @@
 ```
 QSDELCHECK_DEBUG - enables debuging; True, true, TRUE or 1 to enable.
 QSDELCHECK_CHAIN - chain_id to check.
+QSDELCHECK_ENV   - prod, test, dev
 ```
 
 Docker:
