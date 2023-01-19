@@ -6,7 +6,7 @@ from prometheus_client import Enum, start_http_server, Gauge
 
 start_http_server(9091)
 
-chain_id = os.environ.get("QSDELCHECK_CHAIN", "stargaze-1")
+chain_id = os.environ.get("QSDELCHECK_CHAIN")
 debug = os.environ.get("QSDELCHECK_DEBUG", False) in [True, "true", "TRUE", "True", "1", 1]
 env = os.environ.get("QSDELCHECK_ENV", "prod").lower()
 
@@ -42,7 +42,7 @@ while True:
   dbg_print("=================== {} ===================".format(datetime.now()))
   supply_req = requests.get("https://lcd.{}quicksilver.zone/cosmos/bank/v1beta1/supply".format(url_env))
   supply = supply_req.json().get("supply")
-  this_token = [int(x.get("amount")) for x in supply if x.get("denom") == zone.get("local_denom")][0]
+  this_token = [int(x.get("amount", 0)) for x in supply if x.get("denom") == zone.get("local_denom")][0]
   g_supply_amount.set(this_token)
   delegation_req = requests.get("https://lcd.{}quicksilver.zone/quicksilver/interchainstaking/v1/zones/{}/delegations".format(url_env, chain_id))
   delegated_tvl = int(delegation_req.json().get('tvl'))
