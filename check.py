@@ -6,7 +6,7 @@ import yaml
 from datetime import datetime
 from prometheus_client import Enum, start_http_server, Gauge
 
-VERSION="1.0.1"
+VERSION="1.0.2"
 
 config_file = "config.yaml"
 
@@ -48,7 +48,11 @@ def get_price(chain_id, denom, cgid):
   headers = {"X-RapidAPI-Key": config.get("coingecko_api_key"),"X-RapidAPI-Host": "coingecko.p.rapidapi.com"}
   try:
     response = requests.request("GET", url, headers=headers, params=querystring)
-    g_asset_price.labels(chain_id, denom).set(float(response.json().get("market_data").get("current_price").get("usd")))
+    value = float(response.json().get("market_data", {}).get("current_price", {}).get("usd", 0.00))
+    if value == 0.00:
+      print("unable to get price for {}".format(cgid))
+      return
+    g_asset_price.labels(chain_id, denom).set(value)
   except requests.exceptions.RequestException as e:
         print("error: {}".format(e))
 
