@@ -6,7 +6,7 @@ import yaml
 from datetime import datetime
 from prometheus_client import Enum, start_http_server, Gauge
 
-VERSION="1.0.2"
+VERSION="1.0.3"
 
 config_file = "config.yaml"
 
@@ -146,17 +146,17 @@ while True:
     except requests.exceptions.RequestException as e:
       print("error: {}".format(e))
 
-  ## ibc queue
-  for port, channel in chain_data.get("channels").items():
-    try:
-      ibc_packet_commitments_req = requests.get((config.get("lcd")+"/ibc/core/channel/v1/channels/{}/ports/icacontroller-{}.{}/packet_commitments").format("", url_env, channel, chain_id, port))
-      ibc_packet_commitments = int(ibc_packet_commitments_req.json().get('pagination').get('total'))
-      g_ibc_commitment_queue.labels(chain_id, channel, port).set(ibc_packet_commitments)
-      ibc_packet_acks_req = requests.get((config.get("lcd")+"/ibc/core/channel/v1/channels/{}/ports/icacontroller-{}.{}/packet_commitments").format("", url_env, channel, chain_id, port))
-      ibc_packet_acks = int(ibc_packet_acks_req.json().get('pagination').get('total'))
-      g_ibc_acknowledgement_queue.labels(chain_id, channel, port).set(ibc_packet_acks)
-    except requests.exceptions.RequestException as e:
-      print("error: {}".format(e))
+    ## ibc queue
+    for port, channel in chain_data.get("channels").items():
+      try:
+        ibc_packet_commitments_req = requests.get((config.get("lcd")+"/ibc/core/channel/v1/channels/{}/ports/icacontroller-{}.{}/packet_commitments").format("", url_env, channel, chain_id, port))
+        ibc_packet_commitments = int(ibc_packet_commitments_req.json().get('pagination').get('total'))
+        g_ibc_commitment_queue.labels(chain_id, channel, port).set(ibc_packet_commitments)
+        ibc_packet_acks_req = requests.get((config.get("lcd")+"/ibc/core/channel/v1/channels/{}/ports/icacontroller-{}.{}/packet_commitments").format("", url_env, channel, chain_id, port))
+        ibc_packet_acks = int(ibc_packet_acks_req.json().get('pagination').get('total'))
+        g_ibc_acknowledgement_queue.labels(chain_id, channel, port).set(ibc_packet_acks)
+      except requests.exceptions.RequestException as e:
+        print("error: {}".format(e))
 
   check_wallets()
   time.sleep(sleep_time)
