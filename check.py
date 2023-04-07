@@ -6,7 +6,7 @@ import yaml
 from datetime import datetime
 from prometheus_client import Enum, start_http_server, Gauge
 
-VERSION="1.0.3"
+VERSION="1.0.4"
 
 config_file = "config.yaml"
 
@@ -25,6 +25,12 @@ start_http_server(config.get("port", "9091"))
 sleep_time = int(config.get("sleep", 30))
 debug = config.get('debug', False) in [True, "true", "TRUE", "True", "1", 1]
 env = config.get('env', "prod").lower()
+
+state_map = {
+  "STATE_INIT": 0,
+  "STATE_OPEN": 1,
+  "STATE_CLOSED": 2,
+}
 
 def check_wallets():
   for chain_id, wallets in config.get('wallets', {}).items():
@@ -70,11 +76,11 @@ g_supply_amount = Gauge('qsd_supply_amount', "Total qAsset supply", ['chain_id']
 g_wallet_balance = Gauge('qsd_wallet_balance', "Wallet balance", ['chain_id', 'wallet', 'wallet_name', 'denom'])
 g_ibc_acknowledgement_queue = Gauge('qsd_ibc_acks', "IBC Acknowledgement Queue", ['chain_id', 'channel', 'port'])
 g_ibc_commitment_queue = Gauge('qsd_ibc_commitments', "IBC Commitment Queue", ['chain_id', 'channel', 'port'])
+g_ibc_channel_state = Gauge('qsd_ibc_channel_state', "Current status of IBC channel", ['chain_id', 'channel', 'port'])
 g_icq_oldest_emission_distance = Gauge('qsd_icq_oldest_emission_distance', "Distance between oldest emission height and current block", ['chain_id'])
 g_icq_historic_queue = Gauge('qsd_icq_historic_queue', "ICQ Queue Length", ['chain_id'])
 g_asset_price = Gauge('qsd_base_asset_price', "Base asset price for zone", ["chain_id", "denom"])
 g_redemption_rate = Gauge('qsd_redemption_rate', "Redemption rate for zone", ["chain_id"])
-
 zone_req = requests.get((config.get('lcd')+"/quicksilver/interchainstaking/v1/zones").format("", url_env))
 zones = zone_req.json().get('zones')
 
@@ -141,14 +147,19 @@ while True:
       for x in resp.get('queries'):
         if int(x.get('last_emission')) < lowest:
           lowest = int(x.get('last_emission'))
-        if lowest != DEFAULT_LOWEST:
-          g_icq_oldest_emission_distance.labels(chain_id).set(current_height-lowest)
+      if lowest != DEFAULT_LOWEST:
+        g_icq_oldest_emission_distance.labels(chain_id).set(current_height-lowest)
+      else:
+        g_icq_oldest_emission_distance.labels(chain_id).set(0)
     except requests.exceptions.RequestException as e:
       print("error: {}".format(e))
 
     ## ibc queue
     for port, channel in chain_data.get("channels").items():
       try:
+        ibc_state_req = requests.get((config.get("lcd")+"/ibc/core/channel/v1/channels/{}/ports/icacontroller-{}.{}").format("", url_env, channel, chain_id, port))
+        ibc_state = state_map.get(ibc_state_req.json().get('channel', {}).get('state', 'UNKNOWN'), -1)
+        g_ibc_channel_state.labels(chain_id, channel, port).set(ibc_state)
         ibc_packet_commitments_req = requests.get((config.get("lcd")+"/ibc/core/channel/v1/channels/{}/ports/icacontroller-{}.{}/packet_commitments").format("", url_env, channel, chain_id, port))
         ibc_packet_commitments = int(ibc_packet_commitments_req.json().get('pagination').get('total'))
         g_ibc_commitment_queue.labels(chain_id, channel, port).set(ibc_packet_commitments)
