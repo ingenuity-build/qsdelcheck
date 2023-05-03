@@ -6,7 +6,7 @@ import yaml
 from datetime import datetime
 from prometheus_client import Enum, start_http_server, Gauge
 
-VERSION="1.0.4"
+VERSION="1.0.5"
 
 config_file = "config.yaml"
 
@@ -98,7 +98,8 @@ while True:
       get_price(chain_id, zone.get('base_denom'), cgid)
     dbg_print("=================== {} ({})  ===================".format(datetime.now(), chain_id))
     g_redemption_rate.labels(chain_id).set(float(zone.get('redemption_rate')))
-    this_token = [int(x.get("amount", 0)) for x in supply if x.get("denom") == zone.get("local_denom")][0]
+    this_tokens = [int(x.get("amount", 0)) for x in supply if x.get("denom") == zone.get("local_denom")]
+    this_token = this_tokens[0] if len(this_tokens) > 0 else 0
     g_supply_amount.labels(chain_id).set(this_token)
     try:
       delegation_req = requests.get((config.get("lcd")+"/quicksilver/interchainstaking/v1/zones/{}/delegations").format("", url_env, chain_id))
